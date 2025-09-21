@@ -10,7 +10,7 @@ const TELEGRAM_TOKEN = process.env.TELEGRAM_TOKEN; // خزّن التوكن في
 const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID; // نفس الشي للـ chat_id
 
 // تقديم الملفات الثابتة (HTML, CSS, JS) من مجلد public
-app.use(express.static(path.join(__dirname, "public")));
+app.use(express.static(path.join(__dirname, "index.html")));
 
 // استقبال الموقع من المتصفح وإرساله إلى تيليجرام
 app.post("/send-location", async (req, res) => {
